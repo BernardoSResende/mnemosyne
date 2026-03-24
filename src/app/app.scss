@@ -1,0 +1,579 @@
+@import url('https://fonts.googleapis.com/css2?family=Eagle+Lake&family=Estonia&family=Faculty+Glyphic&family=Fascinate&family=Fontdiner+Swanky&family=Girassol&family=Quintessential&family=Rye&family=Special+Elite&display=swap');
+
+/* ==========================================================================
+   THE MNEMOSYNE PROJECT - CORE STYLES
+   ========================================================================== */
+
+// 1. ANIMATION & COLOR VARIABLES
+// Tweak these to change the feel of the entire experience
+$plunge-duration: 5s;
+// Tweak these for the "vibe"
+$vortex-duration: 2.2s; // Faster spin looks more "stable"
+$stagger-delay: 0.25s; // The time between each circle leaving the ring
+$settle-pause: 0.3s;
+$plunge-curve: cubic-bezier(0.8, 0, 0.1, 1);
+$pop-in-curve: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+$color-primary: #EE005A; // Pink
+$color-deep-purple: #30043b;
+$color-navy: #012641;
+$color-white: #ffffff;
+
+// 2. STAR PRINTER FUNCTION
+@function create-stars($count, $totalHeight) {
+  $stars: "";
+  @for $i from 1 through $count {
+    $x: random(100);
+    // Logic: Stars start spawning after the first few viewports
+    $y: random($totalHeight - 2650) + 2550;
+    $stars: $stars + "#{$x}vw #{$y}vh 0px #{$color-white}";
+    @if $i < $count { $stars: $stars + ", "; }
+  }
+  @return unquote($stars);
+}
+
+/* ==========================================================================
+   MAIN CONTAINER
+   ========================================================================== */
+
+.hero-container {
+  position: relative;
+  height: 100vh;
+  padding: 2vh 20px;
+  box-sizing: border-box;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  align-items: center;
+
+  background-color: $color-primary;
+  color: $color-navy;
+  font-family: 'Segoe UI', Roboto, Helvetica, sans-serif;
+  perspective: 1000px;
+
+  // Transitions
+  transition: color $plunge-duration $plunge-curve;
+
+  // Static Vignette Effect
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle, rgba(1, 38, 65, 0) 40%, rgba(1, 38, 65, 0.35) 100%);
+    pointer-events: none;
+    z-index: 2;
+  }
+}
+
+/* ==========================================================================
+   BACKGROUND & ENVIRONMENT
+   ========================================================================== */
+
+.parallax-bg {
+  position: absolute;
+  inset: -5%;
+  z-index: 1;
+  background: linear-gradient(to bottom,
+    $color-primary 0%,
+    $color-primary 12%,
+    $color-deep-purple 50%,
+    $color-navy 88%,
+    $color-navy 100%
+  );
+  background-size: 100% 4000%;
+  background-position: top;
+
+  // Multiply by 1px to add the unit back safely
+  transform: translate(calc(var(--x) * -0.5px), calc(var(--y) * -0.5px));
+  transition: transform 0.1s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+              background-position $plunge-duration $plunge-curve;
+}
+
+.star-field {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 4000vh;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.8;
+  transition: transform $plunge-duration $plunge-curve;
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 4px;
+    height: 4px;
+    background: transparent;
+    box-shadow: create-stars(250, 4000);
+  }
+}
+
+@keyframes starPulse {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.7; }
+}
+
+/* ==========================================================================
+   CONTENT & TYPOGRAPHY
+   ========================================================================== */
+
+.content-wrapper {
+  position: relative;
+  z-index: 3;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 30px;
+  filter: drop-shadow(0px 20px 30px rgba(0, 0, 0, 0.5));
+
+  // Parallax Transform
+  transform: translate(calc(var(--x) * 2px), calc(var(--y) * 2px))
+             rotateX(calc(var(--y) * -0.1deg))
+             rotateY(calc(var(--x) * 0.1deg));
+
+  transition: transform 0.1s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+              top $plunge-duration $plunge-curve;
+}
+
+.title-div {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.hero-title {
+  font-size: 6.5rem;
+  margin: 0;
+  text-align: center;
+  font-weight: 800;
+  letter-spacing: 2px;
+}
+
+.hero-subtitle {
+  font-size: 3rem;
+  text-align: center;
+  font-weight: 400;
+  width: 80%;
+  opacity: 0.8;
+}
+
+.hero-button {
+  padding: 15px 40px;
+  font-size: 1.2rem;
+  font-weight: 600;
+  background-color: transparent;
+  color: $color-white;
+  border: 2px solid $color-white;
+  border-radius: 50px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+
+  &:hover {
+    background-color: $color-white;
+    color: $color-navy;
+    transform: translateY(-2px);
+  }
+}
+
+/* ==========================================================================
+   V-FORMATION & CIRCLES
+   ========================================================================== */
+
+.v-formation {
+  position: absolute;
+  top: 68%;
+  left: 50%;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 4;
+}
+
+.circle {
+  position: absolute;
+  width: clamp(15px, 2vw, 30px);
+  height: clamp(15px, 2vw, 30px);
+  border-radius: 50%;
+  background-color: $color-white;
+  box-shadow: 0 0 20px rgba(255, 255, 255, 0.8);
+
+  // Layout Math
+  --base-x: calc(var(--x-factor) * 10vw);
+  --base-y: calc(var(--y-factor) * 10vw);
+
+  transform: translate(calc(-50% + var(--base-x)), calc(-50% + var(--base-y))) scale(0);
+  opacity: 0;
+
+  // Initial Spawn Animation
+  animation: popIn 0.6s $pop-in-curve forwards;
+  animation-delay: calc(var(--delay) * 1s);
+
+  transition:
+    top 0.8s cubic-bezier(0.19, 1, 0.22, 1),
+    left 0.8s cubic-bezier(0.19, 1, 0.22, 1),
+    transform 0.8s cubic-bezier(0.19, 1, 0.22, 1),
+    opacity 0.5s ease;
+}
+
+/* ==========================================================================
+   THE EMBARKING STATES
+   ========================================================================== */
+
+.hero-container.embarking {
+  .parallax-bg {
+    background-position: bottom;
+  }
+
+  .star-field {
+    transform: translateY(-3900vh);
+  }
+
+  .hero-button {
+    border-color: $color-primary;
+    color: $color-primary;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .content-wrapper {
+    top: -150vh;
+    transform: translate(0, 0) rotateX(0) rotateY(0) !important;
+  }
+
+  .circle {
+    opacity: 1;
+    animation-delay: 0s;
+    animation: plungeWarp $plunge-duration ease-in-out forwards;
+  }
+}
+
+/* ==========================================================================
+   KEYFRAMES
+   ========================================================================== */
+
+@keyframes popIn {
+  0%   { opacity: 0; transform: translate(calc(-50% + var(--base-x)), calc(-50% + var(--base-y))) scale(0); }
+  100% { opacity: 1; transform: translate(calc(-50% + var(--base-x)), calc(-50% + var(--base-y))) scale(1); }
+}
+
+@keyframes plungeWarp {
+  0% {
+    transform: translate(calc(-50% + var(--base-x)), calc(-50% + var(--base-y))) scale(1, 1);
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.8);
+  }
+  42% {
+    // THE BRACE
+    transform: translate(calc(-50% + var(--base-x)), calc(-50% + var(--base-y) - 22vh)) scale(1.6, 0.4);
+    box-shadow: 0 0 30px rgba(255, 255, 255, 1);
+  }
+  50% {
+    // THE SNAP
+    transform: translate(calc(-50% + var(--base-x)), calc(-50% + var(--base-y) + 15vh)) scale(0.5, 3.5);
+    box-shadow: 0 -50px 20px rgba(255, 255, 255, 0.4), 0 -100px 20px rgba(255, 255, 255, 0.1);
+  }
+  70% {
+    // THE SOAR
+    transform: translate(calc(-50% + var(--base-x)), calc(-50% + var(--base-y) + 15vh)) scale(0.8, 1.8);
+    box-shadow: 0 -25px 15px rgba(255, 255, 255, 0.3);
+  }
+  85% {
+    // THE BRAKE
+    transform: translate(calc(-50% + var(--base-x)), calc(-50% + var(--base-y) + 18vh)) scale(1.6, 0.4);
+    box-shadow: 0 -5px 15px rgba(255, 255, 255, 0.5);
+  }
+  93% {
+    // RECOVERY
+    transform: translate(calc(-50% + var(--base-x)), calc(-50% + var(--base-y) + 14vh)) scale(1, 1);
+    box-shadow: 0 -10px 15px rgba(255, 255, 255, 0.4);
+  }
+  100% {
+    // SETTLED
+    transform: translate(calc(-50% + var(--base-x)), calc(-50% + var(--base-y))) scale(1, 1);
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.8);
+  }
+}
+
+/* 1. THE MENU STAGE (Positioned 40 screens down) */
+.menu-stage {
+  position: absolute;
+  top: 4000vh; // Waiting at the bottom of the plunge
+  left: 0;
+  width: 100%;
+  height: 100vh;
+  z-index: 10;
+  opacity: 0;
+  transition: opacity 1s ease;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  &.active {
+    opacity: 1;
+    top: 0; // Moves into view when the container has plunged
+    transition: opacity 1s ease 0.5s;
+  }
+}
+
+
+/* 2. THE CIRCLE CHOREOGRAPHY */
+
+// 1. Define the custom property so the browser knows it can be smoothly transitioned
+@property --orbit-radius {
+  syntax: '<length>';
+  initial-value: -150px;
+  inherits: false;
+}
+
+// 2. Combine BOTH states so the animation list is identical.
+// This prevents the browser from restarting the spin when the class changes!
+.hero-container.vortexing .circle,
+.hero-container.menu-open .circle {
+  animation:
+    vortexEntry 0.5s ease-in-out,
+    vortexOrbit $vortex-duration linear infinite 0.5s;
+
+  top: calc(50vh - 68vh) !important;
+  left: 0 !important;
+  --base-x: 0px;
+  --base-y: 0px;
+  --orbit-radius: -150px; // Default spinning radius
+}
+
+// 3. MENU OPEN STATE: The overrides for the sidebar movement
+.hero-container.menu-open .circle {
+  // Move the center anchor point to the right sidebar
+  top: calc(50vh + (var(--index) - 3) * 90px - 68vh) !important;
+  left: calc(50vw - 60px) !important;
+
+  // Collapse the radius so they stop making wide circles when they land
+  --orbit-radius: 0px;
+
+  // Smoothly transition the movement AND the radius collapse
+  transition:
+    top 1.2s cubic-bezier(0.19, 1, 0.22, 1),
+    left 1.2s cubic-bezier(0.19, 1, 0.22, 1),
+    --orbit-radius 1.2s cubic-bezier(0.19, 1, 0.22, 1);
+
+  // Stagger the exit! Everyone waits $settle-pause, then leaves one-by-one.
+  transition-delay: calc(#{$settle-pause} + var(--index) * #{$stagger-delay});
+
+  box-shadow: 0 0 10px #fff;
+}
+
+// 4. KEYFRAMES
+@keyframes vortexEntry {
+  from {
+    transform: translate(calc(-50% + var(--x-factor) * 10vw), calc(-50% + var(--y-factor) * 10vw + 18vh));
+  }
+  to {
+    transform: translate(-50%, -50%) rotate(calc(var(--index) * -51.42deg)) translateY(var(--orbit-radius));
+  }
+}
+
+@keyframes vortexOrbit {
+  from {
+    transform: translate(-50%, -50%) rotate(calc(var(--index) * -51.42deg)) translateY(var(--orbit-radius));
+  }
+  to {
+    transform: translate(-50%, -50%) rotate(calc(var(--index) * -51.42deg + 360deg)) translateY(var(--orbit-radius));
+  }
+}
+
+/* ==========================================================================
+   CAROUSEL & CHAPTER LAYOUT
+   ========================================================================== */
+
+   .carousel-track {
+    width: 100%;
+    height: 100vh;
+    // This handles the smooth sliding between chapters
+    transition: transform 1s cubic-bezier(0.8, 0, 0.1, 1);
+  }
+
+  .chapter-container {
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+
+    // We leave 120px of padding on the right so the text/art doesn't overlap the 7 spinning circles
+    padding: 0 120px 0 80px;
+    box-sizing: border-box;
+
+    position: relative; // Keeps absolute children anchored properly
+  overflow: hidden;   // Fixes the vertical bleeding
+
+    // THE MAGIC TRICK: This flips the layout for the alternating chapters
+    &.reverse {
+      flex-direction: row-reverse;
+
+    }
+  }
+
+  // --- TEXT SIDE ---
+  .chapter-text {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 30px; // Adds perfect spacing between title, desc, and the new button
+    padding: 0 40px;
+    z-index: 5; // Keeps the text safely above the giant art
+
+    .chapter-title {
+      font-size: 4rem;
+      font-weight: 800;
+      margin: 0;
+      letter-spacing: 4px;
+      color: $color-white;
+      text-align: center;
+    }
+
+    .chapter-desc {
+      font-family: '"Estonia", cursive';
+      font-size: 2rem; // Bumped up slightly since it's a cursive font
+      font-weight: 400;
+      line-height: 1.6;
+      margin: 0;
+      color: rgba(255, 255, 255, 0.7);
+      text-align: center;
+    }
+  }
+
+  // --- ART SIDE (MASSIVE & UNRESTRICTED) ---
+  .chapter-art-wrapper {
+    flex: 1;
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh; // Let the wrapper take up the full screen height
+    z-index: 1;
+  }
+
+  .art-composition {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    // mix-blend-mode and isolation are completely removed
+  }
+
+  // 2. THE MASK ELEMENT
+  .chapter-art-mask {
+    width: 100%;
+    height: 100%;
+
+    // Default resting state
+    background-color: #ffffff;
+    opacity: 0.4;
+
+    // The mask properties (acts exactly like background-image)
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+    // --- NEW: HARDWARE ACCELERATION FIXES ---
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  transform: translateZ(0); // Forces the element to stay on the GPU
+  will-change: background-color, transform, opacity; // Tells the browser to prep for these changes
+
+    // Smooth transition for both color and scale
+    transition: background-color 0.6s ease, opacity 0.6s ease, transform 0.6s ease;
+  }
+
+ // 3. THE TRIGGER
+ .chapter-container:has(.chapter-action-btn:hover) {
+
+  .chapter-art-mask {
+    background-color: var(--chapter-color); // Changes the strokes to the primary color
+    opacity: 0.9; // Brightens up
+    transform: scale(1.05); // Subtle zoom effect
+  }
+}
+
+  .chapter-action-btn {
+    padding: 15px 40px;
+    font-size: 1.2rem;
+    font-weight: 600;
+    letter-spacing: 2px;
+    background-color: transparent;
+    color: $color-white;
+    border: 2px solid $color-white;
+    border-radius: 50px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    // Removed the shadow so it matches the clean aesthetic of your hero button
+
+    &:hover {
+      background-color: $color-white;
+      color: $color-navy;
+      transform: translateY(-2px);
+    }
+  }
+
+
+// 2. NEW: The Up/Down Carousel Buttons
+.nav-arrow {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 50px;
+  height: 50px;
+  border: 2px solid $color-white;
+  border-radius: 50%;
+  background: transparent;
+  color: $color-white;
+  font-size: 1.5rem;
+  cursor: pointer;
+  z-index: 20;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: all 0.3s ease;
+
+  &:hover {
+    background: $color-white;
+    color: $color-navy;
+    transform: translateX(-50%) scale(1.1);
+  }
+
+  &.up { top: 40px; }
+  &.down { bottom: 40px; }
+}
+
+// 3. Cleaned up Art Frame (Removed the frame-dot overrides entirely)
+.art-frame {
+  position: relative;
+  width: 80%;
+  height: 60vh;
+  border: 4px solid $color-white;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(5px);
+
+  .art-label {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    font-size: 1rem;
+    color: rgba(255, 255, 255, 0.5);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+  }
+}
