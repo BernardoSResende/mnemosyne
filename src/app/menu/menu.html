@@ -1,0 +1,93 @@
+
+<main class="hero-container"
+      [class.embarking]="isEmbarking()"
+      [class.vortexing]="isVortexing()"
+      [class.menu-open]="isMenuOpen()"
+      [class.settled]="isSettled()"
+      [class.chapter-diving]="enteringChapterId() !== null"
+      [style.--x]="mouseX"
+      [style.--y]="mouseY">
+
+  <div class="parallax-bg">
+    <div class="star-field"></div>
+  </div>
+
+  <div class="content-wrapper">
+    <div class="title-div">
+      <h1 class="hero-title">THE MNEMOSYNE</h1>
+      <h1 class="hero-title">PROJECT</h1>
+    </div>
+
+    <p class="hero-subtitle">
+      celebrate the past. build the future
+    </p>
+
+    <button class="hero-button" (click)="startEmbark()">
+      EMBARK
+    </button>
+  </div>
+
+  @if (isSpawningCircles()) {
+    <div class="v-formation">
+      @for (circle of circles; track $index) {
+        <div class="circle"
+             [style.--index]="$index"
+             [style.--x-factor]="circle.x"
+             [style.--y-factor]="circle.y"
+             [style.--delay]="circle.delay"
+             [class.active-nav]="$index === activeChapterIndex()"
+             [attr.data-title]="chapters()[$index].title"
+             (click)="goToChapter($index)">
+
+        </div>
+      }
+    </div>
+  }
+
+  <div class="menu-stage" [class.active]="isMenuOpen()">
+    <button class="nav-arrow up" (click)="handleUpAction()">↑</button>
+    <button class="nav-arrow down" (click)="nextChapter()">↓</button>
+
+    <div class="carousel-track" [style.transform]="'translateY(' + (activeChapterIndex() * -100) + 'vh)'">
+
+      @for (chapter of chapters(); track chapter.id) {
+        <div class="chapter-container"
+            [style.--chapter-color]="chapter.primaryColor"
+            [class.reverse]="$index % 2 !== 0"
+            [class.transitioning]="enteringChapterId() === chapter.id"
+            >
+
+          <div class="chapter-text">
+            <div class="magnetic-text">
+              <div class="floating-wrapper">
+                <div class="text-content">
+                  <h2 class="chapter-title" [style.font-family]="chapter.titleFont">{{ chapter.title }}</h2>
+                  <p class="chapter-desc">{{ chapter.description }}</p>
+                </div>
+            <button class="chapter-action-btn"
+                    [class.clicked]="enteringChapterId() === chapter.id"
+                      (click)="enterChapter(chapter.id)"
+            >{{ chapter.actionText }}</button>
+          </div>
+          </div>
+
+          </div>
+
+          <div class="chapter-art-wrapper" >
+            <div class="art-composition">
+
+              <div class="chapter-art-mask"
+                   [style.-webkit-mask-image]="'url(' + chapter.imageUrl + ')'"
+                   [style.mask-image]="'url(' + chapter.imageUrl + ')'">
+              </div>
+
+            </div>
+          </div>
+
+        </div>
+      }
+
+    </div>
+  </div>
+
+</main>
