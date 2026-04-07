@@ -6,7 +6,7 @@ import { RouterOutlet } from '@angular/router';
   standalone: true,
   imports: [RouterOutlet],
   templateUrl: './app.html',
-  styleUrls: ['./app.scss'], // This file should now be empty!
+  styleUrls: ['./app.scss'],
 })
 export class App {
   title = 'mnemosyne-project';

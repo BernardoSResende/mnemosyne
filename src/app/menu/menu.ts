@@ -32,6 +32,11 @@ export class Menu implements OnInit {
   // --- PARALLAX STATE ---
   mouseX = 0;
   mouseY = 0;
+  usingGyroscope = false; // Tracks if physical sensors have taken over
+
+  // --- MOBILE CURTAIN STATE (SIGNALS) ---
+  isMobile = signal(false);
+  curtainDismissed = signal(false);
 
   // --- ANIMATION STATE (SIGNALS) ---
   isEmbarking = signal(false);
@@ -52,7 +57,7 @@ export class Menu implements OnInit {
     {
       id: 'odyssey',
       title: 'I. ODYSSEY',
-      description: 'The journey that forged the traveler',
+      description: 'Embark in my international internship experience in Germany.',
       actionText: 'SAIL',
       titleFont: '"Quintessential",serif',
       imageUrl: 'Odyssey.png',
@@ -62,7 +67,7 @@ export class Menu implements OnInit {
     {
       id: 'oceanus',
       title: 'II. OCEANUS',
-      description: 'Dissolving the borders of a world once small.',
+      description: 'See the world (or a tiny part of it) through my lens',
       actionText: 'EXPLORE',
       titleFont: '"Fontdiner Swanky", serif',
       imageUrl: 'Oceanus.png',
@@ -72,8 +77,8 @@ export class Menu implements OnInit {
     {
       id: 'daedalus',
       title: 'III. DAEDALUS',
-      description: 'The alchemy of translating thought into form.',
-      actionText: 'CREATE',
+      description: 'Creativity is a big part of my life. These are some of my projects.',
+      actionText: 'FORGE',
       titleFont: '"Special Elite", system-ui',
       imageUrl: 'Daedalus.png',
       primaryColor: '#FAAE7B',
@@ -82,7 +87,7 @@ export class Menu implements OnInit {
     {
       id: 'talos',
       title: 'IV. TALOS',
-      description: 'The logical pulse of a machine born to work.',
+      description: 'Software is the foundation of our world. Here are some of my contributions.',
       actionText: 'BUILD',
       titleFont: '"Girassol", serif',
       imageUrl: 'Talos.png',
@@ -92,8 +97,8 @@ export class Menu implements OnInit {
     {
       id: 'elysium',
       title: 'V. ELYSIUM',
-      description: 'A stillness found where the noise of the world fades.',
-      actionText: 'BREATHE',
+      description: 'Art is peace in amidst chaos. These are a few of my favorite works.',
+      actionText: 'CLEANSE',
       titleFont: '"Eagle Lake", serif',
       imageUrl: 'Elysium.png',
       primaryColor: '#B5BEDD',
@@ -102,7 +107,7 @@ export class Menu implements OnInit {
     {
       id: 'kairos',
       title: 'VI. KAIROS',
-      description: 'Immersed in the vastness of the singular now.',
+      description: 'The only thing we really have is the present. This is my current endeavor.',
       actionText: 'DIVE',
       titleFont: '"Faculty Glyphic", serif',
       imageUrl: 'Kairos.png',
@@ -112,7 +117,8 @@ export class Menu implements OnInit {
     {
       id: 'prometheus',
       title: 'VII. PROMETHEUS',
-      description: 'The blueprint of a fire waiting for its spark.',
+      description:
+        "Futureseeing is a fool's game, but goals keep us moving. Here's where I'm headed.",
       actionText: 'IGNITE',
       titleFont: '"Rye", system-ui',
       imageUrl: 'Prometheus.png',
@@ -167,6 +173,54 @@ export class Menu implements OnInit {
   // --- LIFECYCLE ---
   ngOnInit(): void {
     this.generateCircles();
+
+    // Check if the device is mobile on initial load
+    if (window.innerWidth <= 768) {
+      this.isMobile.set(true);
+    } else {
+      // If desktop, instantly dismiss the curtain state
+      this.curtainDismissed.set(true);
+    }
+  }
+
+  unlockExperience(): void {
+    this.requestGyroPermissions();
+    this.curtainDismissed.set(true); // Fades the curtain out
+  }
+
+  requestGyroPermissions(): void {
+    if (typeof (DeviceOrientationEvent as any).requestPermission === 'function') {
+      (DeviceOrientationEvent as any)
+        .requestPermission()
+        .then((permissionState: string) => {
+          if (permissionState === 'granted') {
+            this.enableGyro();
+          }
+        })
+        .catch(console.error);
+    } else {
+      this.enableGyro();
+    }
+  }
+
+  enableGyro(): void {
+    this.usingGyroscope = true;
+    window.addEventListener('deviceorientation', this.handleOrientation.bind(this));
+  }
+
+  handleOrientation(event: DeviceOrientationEvent): void {
+    let gamma = event.gamma || 0;
+    let beta = event.beta || 0;
+    const maxTilt = 45;
+
+    // X AXIS
+    const constrainedGamma = Math.max(-maxTilt, Math.min(maxTilt, gamma));
+    this.mouseX = constrainedGamma / maxTilt;
+
+    // Y AXIS (Offset by 45 degrees for natural hand position)
+    const normalizedBeta = beta - 45;
+    const constrainedBeta = Math.max(-maxTilt, Math.min(maxTilt, normalizedBeta));
+    this.mouseY = constrainedBeta / maxTilt;
   }
 
   /**
@@ -194,6 +248,8 @@ export class Menu implements OnInit {
    */
   @HostListener('document:mousemove', ['$event'])
   onMouseMove(event: MouseEvent): void {
+    if (this.usingGyroscope) return;
+
     if ((this.isEmbarking() || this.isSpawningCircles()) && !this.isMenuOpen()) {
       return;
     }

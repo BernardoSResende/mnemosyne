@@ -33,6 +33,68 @@ $color-white: #ffffff;
 }
 
 /* ==========================================================================
+   THE MOBILE CURTAIN (Gyroscope Gate)
+   ========================================================================== */
+
+   .mobile-curtain {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background-color: $color-navy;
+    color: $color-white;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    transition: opacity 1s ease, visibility 1s ease;
+
+    &.dismissed {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    .curtain-content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 30px;
+
+      .enter-btn {
+        padding: 12px 35px;
+        font-size: 1rem;
+        font-weight: 600;
+        letter-spacing: 2px;
+        background: transparent;
+        color: $color-white;
+        border: 1px solid rgba(255, 255, 255, 0.4);
+        border-radius: 50px;
+        cursor: pointer;
+
+        animation: pulseBtn 2.5s infinite;
+        transition: all 0.3s ease;
+
+        &:active {
+          background: $color-white;
+          color: $color-navy;
+        }
+      }
+    }
+  }
+
+  @keyframes pulseBtn {
+    0%, 100% {
+      box-shadow: 0 0 0 transparent;
+      border-color: rgba(255, 255, 255, 0.4);
+    }
+    50% {
+      box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+      border-color: rgba(255, 255, 255, 1);
+    }
+  }
+
+
+/* ==========================================================================
    MAIN CONTAINER
    ========================================================================== */
 
@@ -779,4 +841,105 @@ $color-white: #ffffff;
                 opacity 0.3s ease-in 1.1s,
                 filter 0.3s ease-out !important;
   }
+}
+
+/* ==========================================================================
+   MOBILE RESPONSIVE DESIGN (Max Width: 768px)
+   ========================================================================== */
+
+
+@media (max-width: 768px) {
+
+  // 1. GLOBAL FIX: Strip paddings that throw off centering
+  .hero-container {
+    padding: 0 !important;
+    overflow-x: hidden; // Strictly enforces no horizontal scrolling
+  }
+
+  // 2. HERO TEXT FIX: Stop "MNEMOSYNE" from bleeding off-screen
+  .hero-title {
+    // Reduced from 11vw to 9vw. Keeps the 9-letter word safely inside the screen bounds.
+    font-size: clamp(1.8rem, 9vw, 3.5rem) !important;
+    letter-spacing: 0;
+    line-height: 1.1;
+    width: 100%;
+  }
+
+  .hero-subtitle {
+    font-size: clamp(1.2rem, 5vw, 1.8rem) !important;
+    width: 95%;
+    margin: 0 auto;
+  }
+
+  // 3. CHAPTER CONTAINER FIX: Perfect center alignment
+  .chapter-container, .chapter-container.reverse {
+    flex-direction: column !important;
+    padding: 0 15px !important;
+    justify-content: center;
+  }
+
+  .chapter-text {
+    padding: 0 !important;
+    width: 100%;
+    z-index: 40 !important;
+
+    .chapter-title {
+      font-size: 13vw !important;
+    }
+    .chapter-desc {
+      font-size: 1.2rem !important;
+      padding: 0 10px;
+    }
+  }
+
+  // 4. ART WATERMARK FIX
+  .chapter-art-wrapper {
+    position: absolute;
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 5 !important;
+    opacity: 0.15;
+    pointer-events: none;
+  }
+
+  .art-composition {
+    width: 100%;
+    transform: translate(-50%, -50%) !important;
+  }
+
+  // 5. THE CIRCLES FIX: Centered in Hero, Right in Chapter
+  // By removing the .v-formation mobile override, it naturally falls back
+  // to left: 50% from the desktop code, staying perfectly centered on the Hero screen!
+
+  .circle {
+    --base-x: calc(var(--x-factor) * 14vw);
+    --base-y: calc(var(--y-factor) * 14vw);
+  }
+
+  // When we dive to the menu, pin the dots safely to the right glass
+  .hero-container.menu-open .circle {
+    left: calc(50vw - 25px) !important;
+    right: auto !important; // Clears the bad math
+
+  }
+
+  .hero-container.settled .circle {
+    left: calc(50vw - 25px) !important;
+    right: auto !important;
+    transform: translate(-50%, -50%) scale(0.8) !important;
+  }
+
+  .hero-container.settled .circle.active-nav,
+  .hero-container.settled .circle:hover {
+    transform: translate(-50%, -50%) scale(1.1) !important;
+  }
+
+  // 6. THE TOOLTIP FIX
+  // Since mobile has no hover, we hide all tooltips by default to prevent screen clutter
+
+  .hero-container.settled .circle:hover::before {
+    display: none !important;
+  }
+
 }

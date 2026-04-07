@@ -1,3 +1,11 @@
+<!-- THE MOBILE CURTAIN -->
+@if (isMobile()) {
+  <div class="mobile-curtain" [class.dismissed]="curtainDismissed()">
+    <div class="curtain-content">
+      <button class="enter-btn" (click)="unlockExperience()">TAP TO ENTER</button>
+    </div>
+  </div>
+}
 
 <main class="hero-container"
       [class.embarking]="isEmbarking()"
