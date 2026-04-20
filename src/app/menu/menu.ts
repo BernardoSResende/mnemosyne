@@ -1,4 +1,4 @@
-import { Component, HostListener, OnInit, signal, computed } from '@angular/core';
+import { Component, HostListener, NgZone, OnInit, signal, computed } from '@angular/core';
 import { Router } from '@angular/router';
 
 /**
@@ -28,7 +28,10 @@ export interface Chapter {
   styleUrls: ['./menu.scss'],
 })
 export class Menu implements OnInit {
-  constructor(private router: Router) {}
+  constructor(
+    private router: Router,
+    private ngZone: NgZone,
+  ) {}
   // --- PARALLAX STATE ---
   mouseX = 0;
   mouseY = 0;
@@ -205,22 +208,49 @@ export class Menu implements OnInit {
 
   enableGyro(): void {
     this.usingGyroscope = true;
-    window.addEventListener('deviceorientation', this.handleOrientation.bind(this));
+    // Register outside Angular's zone so we don't trigger CD on every gyro tick (~60Hz).
+    // We re-enter the zone manually inside the handler only when values actually change.
+    this.ngZone.runOutsideAngular(() => {
+      window.addEventListener('deviceorientation', this.handleOrientation.bind(this));
+    });
   }
 
   handleOrientation(event: DeviceOrientationEvent): void {
-    let gamma = event.gamma || 0;
-    let beta = event.beta || 0;
+    // Ignore gyro input during locked animation sequences, matching the mouse behavior
+    if ((this.isEmbarking() || this.isSpawningCircles()) && !this.isMenuOpen()) {
+      return;
+    }
+
+    const gamma = event.gamma || 0; // left/right tilt [-90, 90]
+    const beta = event.beta || 0; // front/back tilt [-180, 180]
     const maxTilt = 45;
 
     // X AXIS
     const constrainedGamma = Math.max(-maxTilt, Math.min(maxTilt, gamma));
-    this.mouseX = constrainedGamma / maxTilt;
+    // Normalize to -1..1, then scale to match the mouse-driven magnitude.
+    // Mouse path produces ~ (viewport/2)/50 => roughly ±10 on a phone, so we scale
+    // the normalized gyro value by 15 to get visible, mouse-equivalent parallax.
+    const normalizedX = constrainedGamma / maxTilt;
 
     // Y AXIS (Offset by 45 degrees for natural hand position)
     const normalizedBeta = beta - 45;
     const constrainedBeta = Math.max(-maxTilt, Math.min(maxTilt, normalizedBeta));
-    this.mouseY = constrainedBeta / maxTilt;
+    const normalizedY = constrainedBeta / maxTilt;
+
+    const PARALLAX_SCALE = 15;
+    const nextX = normalizedX * PARALLAX_SCALE;
+    const nextY = normalizedY * PARALLAX_SCALE;
+
+    // Only re-enter Angular's zone if the value actually changed enough to matter.
+    // This keeps CD cost low while still driving the CSS vars.
+    if (Math.abs(nextX - this.mouseX) < 0.05 && Math.abs(nextY - this.mouseY) < 0.05) {
+      return;
+    }
+
+    this.ngZone.run(() => {
+      this.mouseX = nextX;
+      this.mouseY = nextY;
+    });
   }
 
   /**
@@ -259,6 +289,35 @@ export class Menu implements OnInit {
 
     this.mouseX = (centerX - event.clientX) / 50;
     this.mouseY = (centerY - event.clientY) / 50;
+  }
+
+  // --- SCROLL WHEEL NAVIGATION ---
+  // Tracks the last wheel event time so we only advance one chapter per gesture,
+  // not one per raw tick (trackpads especially fire dozens per swipe).
+  private lastWheelTime = 0;
+  private readonly wheelCooldown = 900; // ms, matches the carousel transition feel
+
+  @HostListener('document:wheel', ['$event'])
+  onWheel(event: WheelEvent): void {
+    // Only intercept scroll when we're in the chapter menu
+    if (!this.isMenuOpen() || !this.isSettled()) return;
+
+    // Ignore while a chapter dive is in progress
+    if (this.enteringChapterId() !== null) return;
+
+    const now = Date.now();
+    if (now - this.lastWheelTime < this.wheelCooldown) return;
+
+    // Require a meaningful delta to filter out inertial noise at the tail of a swipe
+    if (Math.abs(event.deltaY) < 10) return;
+
+    this.lastWheelTime = now;
+
+    if (event.deltaY > 0) {
+      this.nextChapter();
+    } else {
+      this.prevChapter();
+    }
   }
 
   // --- CORE ACTIONS ---

@@ -1,4 +1,3 @@
-
 /* ==========================================================================
    THE MNEMOSYNE PROJECT - CORE STYLES
    ========================================================================== */
@@ -698,6 +697,10 @@ $color-white: #ffffff;
   transition: all 0.3s ease;
   overflow: visible; // Ensures the liquid isn't trapped inside the button
 
+  // PULSATING RIPPLE: emanates concentric rings outward from the border
+  // to signal the button is clickable. Runs continuously until hover/click.
+  animation: btnRipple 2.4s ease-out infinite;
+
   // 1. THE SEED OF THE LIQUID
   // Sits dead center, invisible, waiting to explode
   &::before {
@@ -721,6 +724,8 @@ $color-white: #ffffff;
     color: $color-white;
     transform: translateY(-2px);
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+    // Pause the ripple on hover so the solid hover shadow isn't fighting the ripple shadows
+    animation-play-state: paused;
   }
 
   // 2. THE CLICK OVERRIDE
@@ -733,6 +738,8 @@ $color-white: #ffffff;
     box-shadow: none !important;
     pointer-events: none;
     transform: translateY(-2px) scale(1) !important;
+    // Stop the ripple — the liquid explosion takes over
+    animation: none !important;
 
     // Erupt the liquid from the dead center
     &::before {
@@ -740,6 +747,27 @@ $color-white: #ffffff;
       transform: translate(-50%, -50%) scale(500);
       transition: transform 3.5s ease-in;
     }
+  }
+}
+
+// Ripple keyframes: two staggered rings fading outward from the button border.
+// Using box-shadow (with spread-radius growing and alpha fading) gives a pill-shaped
+// ripple that follows the border-radius exactly — no extra DOM needed.
+@keyframes btnRipple {
+  0% {
+    box-shadow:
+      0 0 0 0 rgba(255, 255, 255, 0.55),
+      0 0 0 0 rgba(255, 255, 255, 0.35);
+  }
+  60% {
+    box-shadow:
+      0 0 0 16px rgba(255, 255, 255, 0),
+      0 0 0 8px rgba(255, 255, 255, 0.18);
+  }
+  100% {
+    box-shadow:
+      0 0 0 28px rgba(255, 255, 255, 0),
+      0 0 0 20px rgba(255, 255, 255, 0);
   }
 }
 
