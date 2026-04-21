@@ -56,7 +56,7 @@
     <button class="nav-arrow up" (click)="handleUpAction()">↑</button>
     <button class="nav-arrow down" (click)="nextChapter()">↓</button>
 
-    <div class="carousel-track" [style.transform]="'translateY(' + (activeChapterIndex() * -100) + 'vh)'">
+    <div class="carousel-track" [style.transform]="'translateY(' + (activeChapterIndex() * -100) + 'dvh)'">
 
       @for (chapter of chapters(); track chapter.id) {
         <div class="chapter-container"

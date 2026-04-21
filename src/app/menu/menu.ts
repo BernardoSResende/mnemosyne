@@ -1,4 +1,12 @@
-import { Component, HostListener, NgZone, OnInit, signal, computed } from '@angular/core';
+import {
+  Component,
+  HostListener,
+  NgZone,
+  OnDestroy,
+  OnInit,
+  signal,
+  computed,
+} from '@angular/core';
 import { Router } from '@angular/router';
 
 /**
@@ -27,7 +35,7 @@ export interface Chapter {
   templateUrl: './menu.html',
   styleUrls: ['./menu.scss'],
 })
-export class Menu implements OnInit {
+export class Menu implements OnInit, OnDestroy {
   constructor(
     private router: Router,
     private ngZone: NgZone,
@@ -191,6 +199,13 @@ export class Menu implements OnInit {
     this.curtainDismissed.set(true); // Fades the curtain out
   }
 
+  ngOnDestroy(): void {
+    if (this.rafId !== null) {
+      cancelAnimationFrame(this.rafId);
+      this.rafId = null;
+    }
+  }
+
   requestGyroPermissions(): void {
     if (typeof (DeviceOrientationEvent as any).requestPermission === 'function') {
       (DeviceOrientationEvent as any)
@@ -206,51 +221,93 @@ export class Menu implements OnInit {
     }
   }
 
+  // Raw values from the most recent gyro event. We sample these on every
+  // animation frame instead of trying to update Angular state inside the
+  // event handler (which fires up to 100Hz and will starve rendering).
+  private latestGyroX = 0;
+  private latestGyroY = 0;
+  private rafId: number | null = null;
+
   enableGyro(): void {
     this.usingGyroscope = true;
-    // Register outside Angular's zone so we don't trigger CD on every gyro tick (~60Hz).
-    // We re-enter the zone manually inside the handler only when values actually change.
+
+    const handler = this.handleOrientation.bind(this);
+
+    // Register outside Angular's zone — gyro events fire up to ~100Hz and
+    // every one would otherwise trigger change detection.
     this.ngZone.runOutsideAngular(() => {
-      window.addEventListener('deviceorientation', this.handleOrientation.bind(this));
+      // iOS / most modern browsers: 'deviceorientation' gives gamma/beta relative to device at launch.
+      window.addEventListener('deviceorientation', handler, true);
+      // Android fallback: some builds only emit the absolute variant.
+      window.addEventListener('deviceorientationabsolute', handler as EventListener, true);
+
+      // Start the rAF loop that flushes the latest gyro values into the
+      // parallax state ONCE per frame. This is the critical piece:
+      // decoupling the high-frequency sensor from the render cycle.
+      this.startGyroPump();
     });
   }
 
-  handleOrientation(event: DeviceOrientationEvent): void {
-    // Ignore gyro input during locked animation sequences, matching the mouse behavior
-    if ((this.isEmbarking() || this.isSpawningCircles()) && !this.isMenuOpen()) {
-      return;
-    }
+  private startGyroPump(): void {
+    if (this.rafId !== null) return; // already running
 
-    const gamma = event.gamma || 0; // left/right tilt [-90, 90]
-    const beta = event.beta || 0; // front/back tilt [-180, 180]
+    const tick = () => {
+      // Only push updates if the values have meaningfully changed, OR if we're
+      // in the menu-open state where the parallax really matters. This keeps CD
+      // work tiny but guarantees responsiveness.
+      const dx = this.latestGyroX - this.mouseX;
+      const dy = this.latestGyroY - this.mouseY;
+
+      if (Math.abs(dx) > 0.01 || Math.abs(dy) > 0.01) {
+        this.ngZone.run(() => {
+          this.mouseX = this.latestGyroX;
+          this.mouseY = this.latestGyroY;
+        });
+      }
+
+      this.rafId = requestAnimationFrame(tick);
+    };
+
+    this.rafId = requestAnimationFrame(tick);
+  }
+
+  handleOrientation(event: DeviceOrientationEvent): void {
+    // Don't gate on animation phases — tilt input should always be "live" the
+    // way mouse input is after the initial lock. The original mouse guard was
+    // to avoid JITTER during the plunge animation, not to freeze parallax entirely.
+    // For gyro there's no analogous jitter problem, so we let every event through.
+
+    const gamma = event.gamma; // left/right tilt [-90, 90], or null if unavailable
+    const beta = event.beta; // front/back tilt [-180, 180], or null
+
+    // If the sensor literally has no data (permission denied / no hardware),
+    // bail — don't zero out the values and cause a snap.
+    if (gamma == null && beta == null) return;
+
     const maxTilt = 45;
 
     // X AXIS
-    const constrainedGamma = Math.max(-maxTilt, Math.min(maxTilt, gamma));
-    // Normalize to -1..1, then scale to match the mouse-driven magnitude.
-    // Mouse path produces ~ (viewport/2)/50 => roughly ±10 on a phone, so we scale
-    // the normalized gyro value by 15 to get visible, mouse-equivalent parallax.
+    const g = gamma ?? 0;
+    const constrainedGamma = Math.max(-maxTilt, Math.min(maxTilt, g));
     const normalizedX = constrainedGamma / maxTilt;
 
-    // Y AXIS (Offset by 45 degrees for natural hand position)
-    const normalizedBeta = beta - 45;
+    // Y AXIS (Offset by 45° so the "neutral" hand position is slightly tilted back,
+    // which matches how people actually hold phones)
+    const b = beta ?? 0;
+    const normalizedBeta = b - 45;
     const constrainedBeta = Math.max(-maxTilt, Math.min(maxTilt, normalizedBeta));
     const normalizedY = constrainedBeta / maxTilt;
 
-    const PARALLAX_SCALE = 15;
-    const nextX = normalizedX * PARALLAX_SCALE;
-    const nextY = normalizedY * PARALLAX_SCALE;
+    // Mouse path produces (viewport/2) / 50 ≈ ±8 on a phone. A scale of 12
+    // gives gyro a slightly more responsive feel than mouse — which feels
+    // right because tilt is coarser than a pixel-accurate pointer.
+    const PARALLAX_SCALE = 12;
 
-    // Only re-enter Angular's zone if the value actually changed enough to matter.
-    // This keeps CD cost low while still driving the CSS vars.
-    if (Math.abs(nextX - this.mouseX) < 0.05 && Math.abs(nextY - this.mouseY) < 0.05) {
-      return;
-    }
-
-    this.ngZone.run(() => {
-      this.mouseX = nextX;
-      this.mouseY = nextY;
-    });
+    // Write to raw properties only. The rAF pump reads these and pushes into
+    // Angular state. Critical: do NOT call ngZone.run() here — this handler
+    // fires ~100x/sec and would destroy performance.
+    this.latestGyroX = normalizedX * PARALLAX_SCALE;
+    this.latestGyroY = normalizedY * PARALLAX_SCALE;
   }
 
   /**
