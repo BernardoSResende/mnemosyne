@@ -13,8 +13,8 @@
       [class.menu-open]="isMenuOpen()"
       [class.settled]="isSettled()"
       [class.chapter-diving]="enteringChapterId() !== null"
-      [style.--x]="mouseX"
-      [style.--y]="mouseY">
+      [style.--x]="mouseX()"
+      [style.--y]="mouseY()">
 
   <div class="parallax-bg">
     <div class="star-field"></div>

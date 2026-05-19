@@ -41,9 +41,9 @@ export class Menu implements OnInit, OnDestroy {
     private ngZone: NgZone,
   ) {}
   // --- PARALLAX STATE ---
-  mouseX = 0;
-  mouseY = 0;
-  usingGyroscope = false; // Tracks if physical sensors have taken over
+  mouseX = signal(0);
+  mouseY = signal(0);
+  usingGyroscope = false;
 
   // --- MOBILE CURTAIN STATE (SIGNALS) ---
   isMobile = signal(false);
@@ -194,9 +194,24 @@ export class Menu implements OnInit, OnDestroy {
     }
   }
 
+  private latestGyroX = 0;
+  private latestGyroY = 0;
+  private rafId: number | null = null;
+  private frameFlushId: number | null = null;
+  private gyroListenersAttached = false;
+  private readonly orientationHandler = (event: DeviceOrientationEvent) =>
+    this.handleOrientation(event);
+
   unlockExperience(): void {
+    this.curtainDismissed.set(true);
+
+    // Start pump + listeners synchronously in the tap handler (critical on iOS).
+    this.ngZone.runOutsideAngular(() => {
+      this.attachGyroListeners();
+      this.startGyroPump();
+    });
+
     this.requestGyroPermissions();
-    this.curtainDismissed.set(true); // Fades the curtain out
   }
 
   ngOnDestroy(): void {
@@ -204,67 +219,83 @@ export class Menu implements OnInit, OnDestroy {
       cancelAnimationFrame(this.rafId);
       this.rafId = null;
     }
+    if (this.frameFlushId !== null) {
+      cancelAnimationFrame(this.frameFlushId);
+      this.frameFlushId = null;
+    }
+    this.detachGyroListeners();
   }
 
   requestGyroPermissions(): void {
-    if (typeof (DeviceOrientationEvent as any).requestPermission === 'function') {
-      (DeviceOrientationEvent as any)
-        .requestPermission()
-        .then((permissionState: string) => {
+    const requestPermission = (
+      DeviceOrientationEvent as unknown as {
+        requestPermission?: () => Promise<PermissionState>;
+      }
+    ).requestPermission;
+
+    if (typeof requestPermission === 'function') {
+      requestPermission
+        .call(DeviceOrientationEvent)
+        .then((permissionState) => {
           if (permissionState === 'granted') {
-            this.enableGyro();
+            this.usingGyroscope = true;
           }
         })
         .catch(console.error);
     } else {
-      this.enableGyro();
+      this.usingGyroscope = true;
     }
   }
 
-  // Raw values from the most recent gyro event. We sample these on every
-  // animation frame instead of trying to update Angular state inside the
-  // event handler (which fires up to 100Hz and will starve rendering).
-  private latestGyroX = 0;
-  private latestGyroY = 0;
-  private rafId: number | null = null;
+  private attachGyroListeners(): void {
+    if (this.gyroListenersAttached) return;
+    this.gyroListenersAttached = true;
 
-  enableGyro(): void {
-    this.usingGyroscope = true;
+    window.addEventListener('deviceorientation', this.orientationHandler, true);
+    window.addEventListener(
+      'deviceorientationabsolute',
+      this.orientationHandler as EventListener,
+      true,
+    );
+  }
 
-    const handler = this.handleOrientation.bind(this);
+  private detachGyroListeners(): void {
+    if (!this.gyroListenersAttached) return;
+    this.gyroListenersAttached = false;
 
-    // Register outside Angular's zone — gyro events fire up to ~100Hz and
-    // every one would otherwise trigger change detection.
-    this.ngZone.runOutsideAngular(() => {
-      // iOS / most modern browsers: 'deviceorientation' gives gamma/beta relative to device at launch.
-      window.addEventListener('deviceorientation', handler, true);
-      // Android fallback: some builds only emit the absolute variant.
-      window.addEventListener('deviceorientationabsolute', handler as EventListener, true);
+    window.removeEventListener('deviceorientation', this.orientationHandler, true);
+    window.removeEventListener(
+      'deviceorientationabsolute',
+      this.orientationHandler as EventListener,
+      true,
+    );
+  }
 
-      // Start the rAF loop that flushes the latest gyro values into the
-      // parallax state ONCE per frame. This is the critical piece:
-      // decoupling the high-frequency sensor from the render cycle.
-      this.startGyroPump();
+  private flushParallaxFromGyro(): void {
+    const dx = this.latestGyroX - this.mouseX();
+    const dy = this.latestGyroY - this.mouseY();
+    if (Math.abs(dx) <= 0.01 && Math.abs(dy) <= 0.01) return;
+
+    this.mouseX.set(this.latestGyroX);
+    this.mouseY.set(this.latestGyroY);
+  }
+
+  /** Schedules at most one UI update per display frame from sensor events. */
+  private scheduleParallaxFlush(): void {
+    if (this.frameFlushId !== null) return;
+
+    this.frameFlushId = requestAnimationFrame(() => {
+      this.frameFlushId = null;
+      this.ngZone.run(() => this.flushParallaxFromGyro());
     });
   }
 
   private startGyroPump(): void {
-    if (this.rafId !== null) return; // already running
+    if (this.rafId !== null) return;
 
     const tick = () => {
-      // Only push updates if the values have meaningfully changed, OR if we're
-      // in the menu-open state where the parallax really matters. This keeps CD
-      // work tiny but guarantees responsiveness.
-      const dx = this.latestGyroX - this.mouseX;
-      const dy = this.latestGyroY - this.mouseY;
-
-      if (Math.abs(dx) > 0.01 || Math.abs(dy) > 0.01) {
-        this.ngZone.run(() => {
-          this.mouseX = this.latestGyroX;
-          this.mouseY = this.latestGyroY;
-        });
-      }
-
+      // Backup path if orientation events are sparse but rAF is running.
+      this.flushParallaxFromGyro();
       this.rafId = requestAnimationFrame(tick);
     };
 
@@ -272,42 +303,29 @@ export class Menu implements OnInit, OnDestroy {
   }
 
   handleOrientation(event: DeviceOrientationEvent): void {
-    // Don't gate on animation phases — tilt input should always be "live" the
-    // way mouse input is after the initial lock. The original mouse guard was
-    // to avoid JITTER during the plunge animation, not to freeze parallax entirely.
-    // For gyro there's no analogous jitter problem, so we let every event through.
+    const gamma = event.gamma;
+    const beta = event.beta;
 
-    const gamma = event.gamma; // left/right tilt [-90, 90], or null if unavailable
-    const beta = event.beta; // front/back tilt [-180, 180], or null
-
-    // If the sensor literally has no data (permission denied / no hardware),
-    // bail — don't zero out the values and cause a snap.
     if (gamma == null && beta == null) return;
 
     const maxTilt = 45;
 
-    // X AXIS
     const g = gamma ?? 0;
     const constrainedGamma = Math.max(-maxTilt, Math.min(maxTilt, g));
     const normalizedX = constrainedGamma / maxTilt;
 
-    // Y AXIS (Offset by 45° so the "neutral" hand position is slightly tilted back,
-    // which matches how people actually hold phones)
     const b = beta ?? 0;
     const normalizedBeta = b - 45;
     const constrainedBeta = Math.max(-maxTilt, Math.min(maxTilt, normalizedBeta));
     const normalizedY = constrainedBeta / maxTilt;
 
-    // Mouse path produces (viewport/2) / 50 ≈ ±8 on a phone. A scale of 12
-    // gives gyro a slightly more responsive feel than mouse — which feels
-    // right because tilt is coarser than a pixel-accurate pointer.
     const PARALLAX_SCALE = 12;
 
-    // Write to raw properties only. The rAF pump reads these and pushes into
-    // Angular state. Critical: do NOT call ngZone.run() here — this handler
-    // fires ~100x/sec and would destroy performance.
     this.latestGyroX = normalizedX * PARALLAX_SCALE;
     this.latestGyroY = normalizedY * PARALLAX_SCALE;
+
+    // Don't wait for the long-lived pump alone — flush on the next frame.
+    this.scheduleParallaxFlush();
   }
 
   /**
@@ -344,8 +362,8 @@ export class Menu implements OnInit, OnDestroy {
     const centerX = window.innerWidth / 2;
     const centerY = window.innerHeight / 2;
 
-    this.mouseX = (centerX - event.clientX) / 50;
-    this.mouseY = (centerY - event.clientY) / 50;
+    this.mouseX.set((centerX - event.clientX) / 50);
+    this.mouseY.set((centerY - event.clientY) / 50);
   }
 
   // --- SCROLL WHEEL NAVIGATION ---
@@ -385,8 +403,8 @@ export class Menu implements OnInit, OnDestroy {
   startEmbark(): void {
     // Stage 1: Lock parallax and show V-formation
     this.isSpawningCircles.set(true);
-    this.mouseX = 0;
-    this.mouseY = 0;
+    this.mouseX.set(0);
+    this.mouseY.set(0);
 
     // 1. Start the 5s Plunge
     setTimeout(() => {
