@@ -16,6 +16,26 @@
       [style.--x]="mouseX()"
       [style.--y]="mouseY()">
 
+      <nav class="social-rail" [class.hidden]="isMobile() && !curtainDismissed()" aria-label="Social links">
+        @for (link of socialLinks; track link.id) {
+          <a
+            class="social-link"
+            [class.social-link--instagram]="link.id === 'instagram'"
+            [href]="link.href"
+            target="_blank"
+            rel="noopener noreferrer"
+            [attr.aria-label]="link.label"
+          >
+            <span
+              class="social-link__glyph"
+              [style.mask-image]="'url(' + link.iconUrl + ')'"
+              [style.-webkit-mask-image]="'url(' + link.iconUrl + ')'"
+              aria-hidden="true"
+            ></span>
+          </a>
+        }
+      </nav>
+
   <div class="parallax-bg">
     <div class="star-field"></div>
   </div>

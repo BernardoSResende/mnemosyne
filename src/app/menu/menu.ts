@@ -30,6 +30,13 @@ export interface Chapter {
   secondaryColor: string;
 }
 
+export interface SocialLink {
+  id: 'linkedin' | 'github' | 'instagram';
+  label: string;
+  href: string;
+  iconUrl: string;
+}
+
 @Component({
   selector: 'app-menu',
   templateUrl: './menu.html',
@@ -137,6 +144,27 @@ export class Menu implements OnInit, OnDestroy {
       secondaryColor: '#2E1E1F',
     },
   ]);
+
+  readonly socialLinks: SocialLink[] = [
+    {
+      id: 'linkedin',
+      label: 'LinkedIn',
+      href: 'https://www.linkedin.com/in/bernardoo-resende/',
+      iconUrl: '/social/logoLinkedin.png',
+    },
+    {
+      id: 'github',
+      label: 'GitHub',
+      href: 'https://github.com/BernardoSResende',
+      iconUrl: '/social/logoGithub.png',
+    },
+    {
+      id: 'instagram',
+      label: 'Instagram',
+      href: 'https://www.instagram.com/bernardoo_sr/',
+      iconUrl: '/social/logoInsta.png',
+    },
+  ];
 
   // --- NAVIGATION METHODS ---
 
