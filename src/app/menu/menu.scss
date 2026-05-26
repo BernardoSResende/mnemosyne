@@ -2,6 +2,15 @@
    THE MNEMOSYNE PROJECT - CORE STYLES
    ========================================================================== */
 
+   :host {
+    display: block;
+    width: 100%;
+    height: 100dvh;
+    overflow: hidden;
+    overscroll-behavior: none;
+    touch-action: manipulation; // reduces double-tap zoom; helps some browsers
+  }
+
 // 1. ANIMATION & COLOR VARIABLES
 // Tweak these to change the feel of the entire experience
 $plunge-duration: 5s;
@@ -13,6 +22,9 @@ $plunge-curve: cubic-bezier(0.8, 0, 0.1, 1);
 $pop-in-curve: cubic-bezier(0.34, 1.56, 0.64, 1);
 $social-icon-color: rgba(255, 255, 255, 0.5); // one gray for LinkedIn, GitHub, Instagram
 $social-icon-color-hover: rgba(255, 255, 255, 0.85);
+$circle-stack-gap-mobile: 56px; // was 90px in desktop formula
+$circle-stack-shift-mobile: 6vh; // moves column up (clear social rail)
+
 
 $color-primary: #EE005A; // Pink
 $color-deep-purple: #30043b;
@@ -213,6 +225,8 @@ $color-white: #ffffff;
   flex-direction: column;
   justify-content: space-around;
   align-items: center;
+  overscroll-behavior: none;
+  touch-action: manipulation;
 
   background-color: $color-primary;
   color: $color-navy;
@@ -1000,18 +1014,22 @@ $color-white: #ffffff;
 
   // 2. HERO TEXT FIX: Stop "MNEMOSYNE" from bleeding off-screen
   .hero-title {
-    // Reduced from 11vw to 9vw. Keeps the 9-letter word safely inside the screen bounds.
-    font-size: clamp(1.8rem, 9vw, 3.5rem) !important;
+    font-size: clamp(1.6rem, 8vw, 3rem) !important;
     letter-spacing: 0;
     line-height: 1.1;
     width: 100%;
   }
-
   .hero-subtitle {
-    font-size: clamp(1.2rem, 5vw, 1.8rem) !important;
+    font-size: clamp(1rem, 4.2vw, 1.5rem) !important;
     width: 95%;
     margin: 0 auto;
   }
+
+  .hero-button {
+    font-size: 1rem !important;
+    padding: 12px 32px !important;
+  }
+
 
   // 3. CHAPTER CONTAINER FIX: Perfect center alignment
   .chapter-container, .chapter-container.reverse {
@@ -1024,16 +1042,27 @@ $color-white: #ffffff;
     padding: 0 !important;
     width: 100%;
     z-index: 40 !important;
-
     .chapter-title {
-      font-size: 13vw !important;
+      font-size: clamp(1.6rem, 9.5vw, 2.4rem) !important;
+      letter-spacing: 0.06em !important;
+      line-height: 1.15 !important;
+      max-width: 100%;
+      overflow-wrap: break-word;
     }
     .chapter-desc {
-      font-size: 1.2rem !important;
+      font-size: 1rem !important;
+      line-height: 1.45 !important;
       padding: 0 10px;
     }
   }
-
+  // VII. PROMETHEUS — longest title + wide font
+  .chapter-container[data-chapter='prometheus'] .chapter-title {
+    font-size: clamp(1.35rem, 7.5vw, 2rem) !important;
+    letter-spacing: 0.02em !important;
+  }
+  .chapter-action-btn {
+    font-size: 0.95rem !important;
+  }
   // 4. ART WATERMARK FIX
   .chapter-art-wrapper {
     position: absolute;
@@ -1060,22 +1089,20 @@ $color-white: #ffffff;
     --base-y: calc(var(--y-factor) * 14vw);
   }
 
-  // When we dive to the menu, pin the dots safely to the right glass
-  .hero-container.menu-open .circle {
-    left: calc(50vw - 25px) !important;
-    right: auto !important; // Clears the bad math
-
-  }
-
+  .hero-container.menu-open .circle,
   .hero-container.settled .circle {
-    left: calc(50vw - 25px) !important;
+    top: calc(
+      50vh + (var(--index) - 3) * #{$circle-stack-gap-mobile} - 68vh - #{$circle-stack-shift-mobile}
+    ) !important;
+    left: calc(50vw - 22px) !important;
     right: auto !important;
-    transform: translate(-50%, -50%) scale(0.8) !important;
   }
-
+  .hero-container.settled .circle {
+    transform: translate(-50%, -50%) scale(0.72) !important;
+  }
   .hero-container.settled .circle.active-nav,
   .hero-container.settled .circle:hover {
-    transform: translate(-50%, -50%) scale(1.1) !important;
+    transform: translate(-50%, -50%) scale(0.9) !important;
   }
 
   // 6. THE TOOLTIP FIX

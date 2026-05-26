@@ -80,6 +80,7 @@
 
       @for (chapter of chapters(); track chapter.id) {
         <div class="chapter-container"
+            [attr.data-title]="chapter.title"
             [style.--chapter-color]="chapter.primaryColor"
             [class.reverse]="$index % 2 !== 0"
             [class.transitioning]="enteringChapterId() === chapter.id"
